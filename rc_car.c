@@ -79,7 +79,48 @@ void LSensor_Task(void)
 void Flasher_Task(void)
 {
 	enum Flash_Command flashCommand = Flash_Stop;
-	//TODO make the timers
+	static enum sm {state_inactive,
+		state_fright_off,
+		state_fright_on,
+		state_fleft_on,
+		state_fleft_off,
+		state_flash_switch_off} StateMachine = state_inactive;
+
+	//Check if there is any noew command to execute
+	if (xQueueCRReceive(Flash_CommandHandle,&flashCommand,100))
+	{
+		switch (flashCommand)
+		{
+		case Flash_Stop:
+			StateMachine = state_flash_switch_off;
+			break;
+		}
+	}
+
+	//Statemachine
+	switch (StateMachine)
+	{
+	case state_inactive:
+		break;
+	case state_fright_off:
+		//TODO init timer -
+		break;
+	case state_fright_on:
+		//TODO init timer -
+		break;
+	case state_flash_switch_off:
+		//TODO make sure flash is off
+		break;
+	case state_fleft_on:
+		//TODO init timer -
+		break;
+	case state_fleft_off:
+		//TODO init timer -
+		break;
+	default:
+		break;
+	}
+
 }
 
 /**

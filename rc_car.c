@@ -2,16 +2,6 @@
 #include "rc_car.h"
 #include "cmsis_os.h"
 
-//Simulate the 4 input pins
-unsigned int PORTX = 0;
-#define PIN_ACCELERATE 	0x01
-#define PIN_BREAK 		0x02
-#define PIN_RIGHT		0x04
-#define PIN_LEFT		0x08
-
-//Simulate the ADC register
-unsigned int ADC_IN = 300;
-
 OutputBuffer OutputBuffers;
 InputBuffer InputBuffers;
 
@@ -19,24 +9,34 @@ extern osMessageQId IO_CommandHandle;
 extern osMessageQId Flash_CommandHandle;
 
 /**
- *
+ * void Input_Task(void)
+ * It gets called in every 100ms and checks the input pins
+ * In case any of the input pins is active it sends a command to
+ * Controller. It doesn't need to store the previous value, because the
+ * controller is updating the PWM values every time it gets called
  */
 void Input_Task(void)
 {
 	enum IO_Command inputCommand = Input_No_Command;
 
 	//check the input pins
+	InputBuffers.SID_WifiControlUp = PORTX && PIN_ACCELERATE;
+	InputBuffers.SID_WifiControlDown = PORTX && PIN_BREAK;
+	InputBuffers.SID_WifiControlRight = PORTX && PIN_RIGHT;
+	InputBuffers.SID_WifiControlLeft = PORTX && PIN_LEFT;
+
+
 	//NOTE: I suppose that only 1 pin can be active at a time
-	if (PORTX && PIN_ACCELERATE)
+	if (InputBuffers.SID_WifiControlUp)
 	{
 		inputCommand = Input_Accelerate;
-	} else if (PORTX && PIN_BREAK)
+	} else if (InputBuffers.SID_WifiControlDown)
 	{
 		inputCommand = Input_Break;
-	} else if (PORTX && PIN_RIGHT)
+	} else if (InputBuffers.SID_WifiControlRight)
 	{
 		inputCommand = Input_Turn_Right;
-	} else if (PORTX && PIN_LEFT)
+	} else if (InputBuffers.SID_WifiControlLeft)
 	{
 		inputCommand = Input_Turn_Left;
 	} else
@@ -44,18 +44,21 @@ void Input_Task(void)
 		inputCommand = Input_No_Command;
 	}
 
-	//TODO add inputCommand to the queue
+	//Command to the queue in order to get the Controller notified
 	xQueueCRSend(IO_CommandHandle,&inputCommand,100);
 }
 
 /**
  * void LSensor_Task(void)
- *
+ * It checks the light sensor and if the input is above / below the
+ * threshold then it notifies the Controller using the IO_CommandHandle queue
  */
 void LSensor_Task(void)
 {
 	static unsigned char isLowBeamOn = 0;
 	enum IO_Command inputCommand = Input_No_Command;
+
+	//Read the value of the sensor
 	InputBuffers.SIA_LightSensor = GET_LIGHT_SENSOR();
 
 	//check if there is dark and the lights are off
@@ -92,7 +95,7 @@ void Flasher_Task(void)
 		state_flash_switch_off} StateMachine = state_inactive;
 
 	//Check if there is any noew command to execute
-	if (xQueueCRReceive(Flash_CommandHandle,&flashCommand,100))
+	if (xQueueCRReceive(Flash_CommandHandle,&flashCommand,0))
 	{
 		switch (flashCommand)
 		{
@@ -193,12 +196,14 @@ void Controller_Task(void)
 			break;
 
 		case Input_Turn_Right:
+			//TODO turn right
 			flashCommand = Flash_Right;
 			updateFlash = 1;
 			updateMotor = 1;
 			break;
 
 		case Input_Turn_Left:
+			//TODO turn left
 			flashCommand = Flash_Left;
 			updateFlash = 1;
 			updateMotor = 1;
@@ -239,6 +244,6 @@ void Controller_Task(void)
 	//send the new command to the Flash task
 	if (updateFlash)
 	{
-		xQueueCRSend(Flash_CommandHandle,&flashCommand,100);
+		xQueueCRSend(Flash_CommandHandle,&flashCommand,1000);
 	}
 }

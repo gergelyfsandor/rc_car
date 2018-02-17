@@ -1,3 +1,5 @@
+
+//Create virtual functions in order to simulate the real driver
 #define SET_PWM1(a) //comment
 #define SET_PWM2(a) //comment
 #define GET_LIGHT_SENSOR() 300
@@ -5,7 +7,15 @@
 #define LEFT_FLASH(a) //comment
 #define LOW_BEEM_ACTIVE(a) //comment
 
+//Simulate the 4 input pins
+unsigned int PORTX = 0;
+#define PIN_ACCELERATE 	0x01
+#define PIN_BREAK 		0x02
+#define PIN_RIGHT		0x04
+#define PIN_LEFT		0x08
 
+
+//Define Threshold for the light sensor
 #define LIGHT_THRESHOLD			500
 #define LIGHT_THRESHOLD_HIST	10
 
@@ -15,8 +25,8 @@ typedef struct
 	unsigned char SOD_Motor12_1;	//TODO - not used
 	unsigned char SOD_Motor12_2;	//TODO - not used
 	unsigned char SOD_Motor12_3;	//TODO - not used
-	unsigned char SODPWM_EnableMotor1;
-	unsigned char SODPWM_EnableMotor2;
+	unsigned char SODPWM_EnableMotor1;	//TODO - not used
+	unsigned char SODPWM_EnableMotor2;	//TODO - not used
 	unsigned char SOD_LeftFlasher;
 	unsigned char SOD_RightFlasher;
 	unsigned char SOD_LowBeam;

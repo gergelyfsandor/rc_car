@@ -1,14 +1,35 @@
+#define SET_PWM1(a) //comment
+#define SET_PWM2(a) //comment
+#define GET_LIGHT_SENSOR() 300
+#define RIGHT_FLASH(a) //comment
+#define LEFT_FLASH(a) //comment
+#define LOW_BEEM_ACTIVE(a) //comment
+
 
 #define LIGHT_THRESHOLD			500
 #define LIGHT_THRESHOLD_HIST	10
 
 typedef struct
 {
-	unsigned char MotorPWM1;
-	unsigned char MotorPWM2;
-	unsigned char MotorEnabled1;
-	unsigned char MotorEnabled2;
+	unsigned char SOD_Motor12_0;	//TODO - not used
+	unsigned char SOD_Motor12_1;	//TODO - not used
+	unsigned char SOD_Motor12_2;	//TODO - not used
+	unsigned char SOD_Motor12_3;	//TODO - not used
+	unsigned char SODPWM_EnableMotor1;
+	unsigned char SODPWM_EnableMotor2;
+	unsigned char SOD_LeftFlasher;
+	unsigned char SOD_RightFlasher;
+	unsigned char SOD_LowBeam;
 } OutputBuffer;
+
+typedef struct
+{
+	unsigned int SIA_LightSensor;
+	unsigned char SID_WifiControlUp;
+	unsigned char SID_WifiControlDown;
+	unsigned char SID_WifiControlRight;
+	unsigned char SID_WifiControlLeft;
+} InputBuffer;
 
 enum IO_Command
 {

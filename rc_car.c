@@ -13,6 +13,7 @@ unsigned int PORTX = 0;
 unsigned int ADC_IN = 300;
 
 OutputBuffer OutputBuffers;
+InputBuffer InputBuffers;
 
 extern osMessageQId IO_CommandHandle;
 extern osMessageQId Flash_CommandHandle;
@@ -48,15 +49,17 @@ void Input_Task(void)
 }
 
 /**
+ * void LSensor_Task(void)
  *
  */
 void LSensor_Task(void)
 {
 	static unsigned char isLowBeamOn = 0;
 	enum IO_Command inputCommand = Input_No_Command;
+	InputBuffers.SIA_LightSensor = GET_LIGHT_SENSOR();
 
 	//check if there is dark and the lights are off
-	if ((ADC_IN < (LIGHT_THRESHOLD - LIGHT_THRESHOLD_HIST)) && (isLowBeamOn == 0))
+	if ((InputBuffers.SIA_LightSensor < (LIGHT_THRESHOLD - LIGHT_THRESHOLD_HIST)) && (isLowBeamOn == 0))
 	{
 		isLowBeamOn = 1;
 		inputCommand = Input_Low_Beam_on;
@@ -64,7 +67,7 @@ void LSensor_Task(void)
 		xQueueCRSend(IO_CommandHandle,&inputCommand,100);
 	}
 	//check if there is bright and lights are on
-	if ((ADC_IN > (LIGHT_THRESHOLD + LIGHT_THRESHOLD_HIST)) && (isLowBeamOn == 1))
+	if ((InputBuffers.SIA_LightSensor > (LIGHT_THRESHOLD + LIGHT_THRESHOLD_HIST)) && (isLowBeamOn == 1))
 	{
 		isLowBeamOn = 0;
 		inputCommand = Input_Low_Beam_off;
@@ -74,7 +77,9 @@ void LSensor_Task(void)
 }
 
 /**
- *
+ * void Flasher_Task(void)
+ * - This function handles the commands to turn on / turn off flashes
+ * - It also has a state machine for the correct on/off timings
  */
 void Flasher_Task(void)
 {
@@ -94,37 +99,57 @@ void Flasher_Task(void)
 		case Flash_Stop:
 			StateMachine = state_flash_switch_off;
 			break;
+		case Flash_Left:
+			StateMachine = state_fleft_on;
+			break;
+		case Flash_Right:
+			StateMachine = state_fright_on;
+			break;
+		default:
+			break;
 		}
 	}
 
-	//Statemachine
+	//Statemachine - used for handling the timers
 	switch (StateMachine)
 	{
 	case state_inactive:
 		break;
 	case state_fright_off:
-		//TODO init timer -
+		StateMachine = state_fright_on;
+		RIGHT_FLASH(1);
+		osDelay(420);
 		break;
 	case state_fright_on:
-		//TODO init timer -
+		StateMachine = state_fright_off;
+		RIGHT_FLASH(1);
+		osDelay(320);
 		break;
 	case state_flash_switch_off:
-		//TODO make sure flash is off
+		RIGHT_FLASH(0);
+		LEFT_FLASH(0);
+		StateMachine = state_inactive;
 		break;
 	case state_fleft_on:
-		//TODO init timer -
+		StateMachine = state_fleft_off;
+		LEFT_FLASH(1);
+		osDelay(320);
 		break;
 	case state_fleft_off:
-		//TODO init timer -
+		StateMachine = state_fleft_on;
+		LEFT_FLASH(1);
+		osDelay(420);
 		break;
 	default:
 		break;
 	}
-
 }
 
 /**
- *
+ * void Controller_Task(void)
+ * This task gets called if a command is available in IO_CommandHandle
+ * queue. It updates the PWM values for the motors, turns on / off the low beam and
+ * if required it calls the flash task
  */
 void Controller_Task(void)
 {
@@ -134,78 +159,84 @@ void Controller_Task(void)
 	unsigned char updateFlash = 0;
 
 	//check if there is any message in the queue
-	xQueueCRReceive(IO_CommandHandle,&inputCommand,100);
-
-	switch (inputCommand)
+	if (xQueueCRReceive(IO_CommandHandle,&inputCommand,100))
 	{
-	case Input_Accelerate:
-		if (OutputBuffers.MotorPWM1 < 100) {
-			OutputBuffers.MotorPWM1++;
+		//process command
+		switch (inputCommand)
+		{
+		case Input_Accelerate:
+			if (OutputBuffers.SODPWM_EnableMotor1 < 100) {
+				OutputBuffers.SODPWM_EnableMotor1++;
+			}
+			if (OutputBuffers.SODPWM_EnableMotor2 < 100) {
+				OutputBuffers.SODPWM_EnableMotor2++;
+			}
+			flashCommand = Flash_Stop; //NOTE: I guess it stops steering
+			updateMotor = 1;
+			updateFlash = 1;
+			break;
+
+		case Input_Break:
+			if (OutputBuffers.SODPWM_EnableMotor1 > 1) {
+				OutputBuffers.SODPWM_EnableMotor1 -= 2;
+			} else {
+				OutputBuffers.SODPWM_EnableMotor1 = 0;
+			}
+			if (OutputBuffers.SODPWM_EnableMotor2 > 1) {
+				OutputBuffers.SODPWM_EnableMotor2 -= 2;
+			} else {
+				OutputBuffers.SODPWM_EnableMotor2 = 0;
+			}
+			flashCommand = Flash_Stop; //NOTE: I guess it stops steering
+			updateMotor = 1;
+			updateFlash = 1;
+			break;
+
+		case Input_Turn_Right:
+			flashCommand = Flash_Right;
+			updateFlash = 1;
+			updateMotor = 1;
+			break;
+
+		case Input_Turn_Left:
+			flashCommand = Flash_Left;
+			updateFlash = 1;
+			updateMotor = 1;
+			break;
+
+		case Input_Low_Beam_off:
+			OutputBuffers.SOD_LowBeam = 0;
+			LOW_BEEM_ACTIVE(0);
+			break;
+
+		case Input_Low_Beam_on:
+			OutputBuffers.SOD_LowBeam = 1;
+			LOW_BEEM_ACTIVE(1);
+			break;
+
+		case Input_No_Command:
+			if (OutputBuffers.SODPWM_EnableMotor1 >= 1) {
+				OutputBuffers.SODPWM_EnableMotor1--;
+			}
+			if (OutputBuffers.SODPWM_EnableMotor2 >= 1) {
+				OutputBuffers.SODPWM_EnableMotor2--;
+			}
+			updateMotor = 1;
+			break;
+
+		default:
+			break;
 		}
-		if (OutputBuffers.MotorPWM2 < 100) {
-			OutputBuffers.MotorPWM2++;
-		}
-		flashCommand = Flash_Stop;
-		updateMotor = 1;
-		updateFlash = 1;
-		break;
-
-	case Input_Break:
-		if (OutputBuffers.MotorPWM1 > 1) {
-			OutputBuffers.MotorPWM1 -= 2;
-		} else {
-			OutputBuffers.MotorPWM1 = 0;
-		}
-		if (OutputBuffers.MotorPWM2 > 1) {
-			OutputBuffers.MotorPWM2 -= 2;
-		} else {
-			OutputBuffers.MotorPWM2 = 0;
-		}
-		flashCommand = Flash_Stop;
-		updateMotor = 1;
-		updateFlash = 1;
-		break;
-
-	case Input_Turn_Right:
-		flashCommand = Flash_Right;
-		updateFlash = 1;
-		updateMotor = 1;
-		break;
-
-	case Input_Turn_Left:
-		flashCommand = Flash_Left;
-		updateFlash = 1;
-		updateMotor = 1;
-		break;
-
-	case Input_Low_Beam_off:
-		//TODO turn the low beam off
-		break;
-
-	case Input_Low_Beam_on:
-		//TODO turn the low beam on
-		break;
-
-	case Input_No_Command:
-		if (OutputBuffers.MotorPWM1 >= 1) {
-			OutputBuffers.MotorPWM1--;
-		}
-		if (OutputBuffers.MotorPWM2 >= 1) {
-			OutputBuffers.MotorPWM2--;
-		}
-		updateMotor = 1;
-		break;
-
-	default:
-		break;
 	}
 
+	//update PWM values
 	if (updateMotor)
 	{
-		//TODO update PWM values for motor control
+		SET_PWM1(OutputBuffers.SODPWM_EnableMotor1);
+		SET_PWM2(OutputBuffers.MotorPWM2);
 	}
 
-	//send the new command to the task
+	//send the new command to the Flash task
 	if (updateFlash)
 	{
 		xQueueCRSend(Flash_CommandHandle,&flashCommand,100);

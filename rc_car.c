@@ -120,7 +120,7 @@ void Flasher_Task(void)
 		break;
 	case state_fright_off:
 		StateMachine = state_fright_on;
-		RIGHT_FLASH(1);
+		RIGHT_FLASH(0);
 		osDelay(420);
 		break;
 	case state_fright_on:
@@ -140,7 +140,7 @@ void Flasher_Task(void)
 		break;
 	case state_fleft_off:
 		StateMachine = state_fleft_on;
-		LEFT_FLASH(1);
+		LEFT_FLASH(0);
 		osDelay(420);
 		break;
 	default:

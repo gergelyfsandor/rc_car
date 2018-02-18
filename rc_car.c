@@ -1,6 +1,7 @@
 
 #include "rc_car.h"
 #include "cmsis_os.h"
+#include "queue.h"
 
 OutputBuffer OutputBuffers;
 InputBuffer InputBuffers;
@@ -18,6 +19,7 @@ extern osMessageQId Flash_CommandHandle;
 void Input_Task(void)
 {
 	enum IO_Command inputCommand = Input_No_Command;
+	unsigned int PORTX = 0;//simulate PORT
 
 	//check the input pins
 	InputBuffers.SID_WifiControlUp = PORTX && PIN_ACCELERATE;
@@ -238,7 +240,7 @@ void Controller_Task(void)
 	if (updateMotor)
 	{
 		SET_PWM1(OutputBuffers.SODPWM_EnableMotor1);
-		SET_PWM2(OutputBuffers.MotorPWM2);
+		SET_PWM2(OutputBuffers.SODPWM_EnableMotor2);
 	}
 
 	//send the new command to the Flash task

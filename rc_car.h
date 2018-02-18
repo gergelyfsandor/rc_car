@@ -8,7 +8,6 @@
 #define LOW_BEEM_ACTIVE(a) //comment
 
 //Simulate the 4 input pins
-unsigned int PORTX = 0;
 #define PIN_ACCELERATE 	0x01
 #define PIN_BREAK 		0x02
 #define PIN_RIGHT		0x04
@@ -25,8 +24,8 @@ typedef struct
 	unsigned char SOD_Motor12_1;	//TODO - not used
 	unsigned char SOD_Motor12_2;	//TODO - not used
 	unsigned char SOD_Motor12_3;	//TODO - not used
-	unsigned char SODPWM_EnableMotor1;	//TODO - not used
-	unsigned char SODPWM_EnableMotor2;	//TODO - not used
+	unsigned char SODPWM_EnableMotor1;
+	unsigned char SODPWM_EnableMotor2;
 	unsigned char SOD_LeftFlasher;
 	unsigned char SOD_RightFlasher;
 	unsigned char SOD_LowBeam;
